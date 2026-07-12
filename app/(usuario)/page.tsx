@@ -1,5 +1,6 @@
 import { SorteoService } from "@/lib/services/sorteo-service";
 import { ConfiguracionService } from "@/lib/services/configuracion-service";
+import { registrarEventoMetrica } from "@/lib/services/metrica-service";
 import { ParticipacionFlow } from "@/components/sorteos/ParticipacionFlow";
 
 export const dynamic = "force-dynamic"; // el sorteo activo cambia con cada participación — nunca se cachea
@@ -15,6 +16,8 @@ export default async function PaginaPrincipal() {
     SorteoService.obtenerUltimoResultadoPublicado(),
     ConfiguracionService.obtenerValor("whatsapp_canal_url"),
   ]);
+
+  await registrarEventoMetrica({ tipo: "VISITA", sorteoId: sorteoActivo?.id ?? null });
 
   return (
     <ParticipacionFlow

@@ -2,7 +2,7 @@
 
 La comunidad oficial de PGL Electrónica. Este repositorio es el código del producto — la documentación de producto y arquitectura vive en [`docs/`](./docs) (PCS y Sprints 1 a 4, todos aprobados).
 
-**Estado actual: Módulo 6 — Seguridad y endurecimiento, validado.** Límite de intentos de login (con bloqueo temporal) y límite de solicitudes en el endpoint público de participación, ambos respaldados en Postgres; protección de rutas extendida a las APIs administrativas; validaciones finales sobre entradas de texto sin tope de longitud. Sigue el roadmap completo de Sprint 4 — ver [Restricciones de este módulo](#restricciones-de-este-módulo) para lo que queda deliberadamente fuera (Módulos 7 y 8).
+**Estado actual: Módulo 7 — Preparación de integraciones, validado.** `NotificacionesService` (WhatsApp) y el registro de eventos en `eventos_metricas` quedan conectados en los momentos reales del flujo (participación confirmada, resultado publicado, visita a la pantalla principal, clic hacia el canal de WhatsApp), con implementación vacía o de solo-lectura por ahora. Sigue el roadmap completo de Sprint 4 — ver [Restricciones de este módulo](#restricciones-de-este-módulo) para lo que queda deliberadamente fuera (Módulo 8).
 
 ---
 
@@ -47,11 +47,13 @@ PGL-Club/
 │   │   │   ├── sorteos/[id]/participantes/exportar/  GET, CSV
 │   │   │   ├── sorteos/[id]/premio/ PATCH (verificar) + POST (confirmar entrega) — A9
 │   │   │   └── participaciones/[id]/ DELETE (A5/A6, `?accion=liberar|eliminar`)
-│   │   └── sorteos/
-│   │       ├── activo/                  GET sorteo activo + último resultado
-│   │       ├── listos-para-resultado/   GET candidatos para A7
-│   │       ├── [id]/participaciones/    GET (chequeo teléfono) / POST (reservar)
-│   │       └── [id]/resultado/          GET (público) / POST (A7) / PATCH (A8) — ambos requieren sesión
+│   │   ├── sorteos/
+│   │   │   ├── activo/                  GET sorteo activo + último resultado
+│   │   │   ├── listos-para-resultado/   GET candidatos para A7
+│   │   │   ├── [id]/participaciones/    GET (chequeo teléfono) / POST (reservar)
+│   │   │   └── [id]/resultado/          GET (público) / POST (A7) / PATCH (A8) — ambos requieren sesión
+│   │   └── metricas/
+│   │       └── click-whatsapp/          POST — registra un clic hacia el canal de WhatsApp (Módulo 7)
 │   ├── layout.tsx                  layout raíz: metadata, globals.css
 │   └── globals.css                 Tailwind + import de los Design Tokens
 ├── components/
@@ -69,7 +71,7 @@ PGL-Club/
 │   ├── require-auth.ts              guardas de sesión para páginas y APIs
 │   ├── api-error.ts                 traducción uniforme de `ErrorAplicacion` a respuesta HTTP
 │   ├── request-ip.ts                 IP real del cliente a partir de `x-forwarded-for`
-│   └── services/                    Sorteo-, Participacion-, Resultado-, ResultadoExterno-, Configuracion-, AdminSorteo-, Auditoria-, ParticipanteService, AuthService, LimitadorService
+│   └── services/                    Sorteo-, Participacion-, Resultado-, ResultadoExterno-, Configuracion-, AdminSorteo-, Auditoria-, ParticipanteService, AuthService, LimitadorService, NotificacionesService, registrarEventoMetrica (Módulo 7)
 ├── hooks/
 │   └── use-theme.ts                tema claro/oscuro
 ├── styles/
@@ -88,6 +90,14 @@ PGL-Club/
 ### Biblioteca de componentes (`components/ui/`)
 
 Implementación en código de la biblioteca ya aprobada en el Sprint 3: `Button`, `Card`, `Input`, `Checkbox`, `Badge`, `Tabs`, `Alert`, `Modal`, `Tooltip`, `Skeleton`, `StatCounter`. Ninguno conoce el negocio de sorteos — reciben datos por props y se apoyan únicamente en los Design Tokens (`styles/tokens.css`) a través de las utilidades de Tailwind configuradas en `tailwind.config.ts`.
+
+### Módulo 7 — decisiones de implementación
+
+- **`NotificacionesService` (`lib/services/notificaciones-service.ts`) es una implementación vacía a propósito** (Sprint 4, sección 5.1): `enviarConfirmacion` se llama desde `ParticipacionService.reservarNumero` justo después de confirmar la reserva, y `anunciarResultado` desde `ResultadoService.publicarResultado` justo después de publicar. El día que exista una API real de WhatsApp, el cambio queda contenido en ese único archivo — ningún llamador necesita tocarse.
+- **El registro en `eventos_metricas` (`lib/services/metrica-service.ts`) se conecta en los tres momentos previstos** (Sprint 4, sección 5.3): `VISITA` en cada carga real de la pantalla principal (`app/(usuario)/page.tsx`), `PARTICIPACION` en cada reserva confirmada, y `CONVERSION_WHATSAPP` en cada clic hacia el canal — este último a través de un endpoint nuevo (`POST /api/metricas/click-whatsapp`) porque el clic ocurre en el cliente (`ParticipacionFlow.abrirWhatsapp`), no en un Server Component.
+- **El clic hacia WhatsApp nunca espera la respuesta del registro de métrica.** `abrirWhatsapp` abre la ventana primero y dispara el `fetch` sin `await`, con un `catch` vacío — perder una fila de métricas no puede demorar ni romper la acción real que el usuario está esperando.
+- **El registro de la participación en `eventos_metricas` ocurre después de que la transacción de reserva ya confirmó éxito, nunca dentro del mismo `try` que la traduce a errores de negocio.** Si esto se escribiera dentro del mismo bloque, una falla al registrar la métrica se traduciría (incorrectamente) en un error de "número ocupado" o "inesperado" de cara al usuario, aunque su número ya hubiera quedado reservado.
+- **`CONVERSION_INSTAGRAM`, `CONVERSION_FACEBOOK` y `CONVERSION_CAMPANA` quedan en el enum sin ningún llamador todavía** — no existe hoy ningún enlace de esos canales en la interfaz real; se agregan el día que exista un enlace concreto que trackear, mismo criterio que ya se aplicó a `ResultadoExternoService` en el Módulo 4.
 
 ### Módulo 6 — decisiones de implementación
 
@@ -171,7 +181,7 @@ npm run prisma:studio    # abre Prisma Studio (http://localhost:5555) para inspe
 
 ## Restricciones de este módulo
 
-Deliberadamente, el Módulo 6 **no** incluye: una integración automática real con la Quiniela ni con WhatsApp (siguen siendo interfaces vacías/carga manual, Módulo 7), ni pulido final de accesibilidad/dispositivos reales ni el primer sorteo real con público (Módulo 8). Eso pertenece a los Módulos 7 y 8 (`docs/SPRINT-4-ARQUITECTURA-TECNICA.md`, sección 6.2).
+Deliberadamente, el Módulo 7 **no** incluye: ninguna integración automática real con WhatsApp ni con la Quiniela (`NotificacionesService` sigue sin hacer nada real, y `ResultadoExternoService` sigue siendo la carga manual del Módulo 4), ningún panel que consuma los datos de `eventos_metricas`, ni pulido final de accesibilidad/dispositivos reales ni el primer sorteo real con público. Eso pertenece al Módulo 8 (`docs/SPRINT-4-ARQUITECTURA-TECNICA.md`, sección 6.2).
 
 ## Checklist de cierre del Módulo 1
 
@@ -280,3 +290,16 @@ Deliberadamente, el Módulo 6 **no** incluye: una integración automática real 
 - **La tabla `intentos_acceso` no tiene un proceso de limpieza automática de filas viejas.** Con el tiempo va a acumular filas de bloqueos ya vencidos hace mucho — no afecta la lógica (una fila vencida se trata como si no existiera) ni el volumen esperado la vuelve un problema real a corto plazo, pero en algún momento futuro convendría un job de limpieza periódico. Fuera de alcance de este módulo.
 - **`middleware.ts` sigue sin migrar a la convención `proxy.ts`** de Next.js 16 — deuda heredada del Módulo 5, misma razón (archivo crítico de seguridad, no se migra sin una validación exhaustiva aparte).
 - **Exportar CSV de un sorteo inexistente sigue devolviendo un archivo vacío en vez de 404** — deuda heredada del Módulo 5, mismo motivo (inalcanzable desde la interfaz real).
+
+## Checklist de cierre del Módulo 7
+
+- [x] `npm run build`, `npm run lint`, `npm run typecheck`, `npm run format:check` — todos en verde
+- [x] `npm audit` — 0 vulnerabilidades
+- [x] Recorrido real contra el servidor y PostgreSQL reales (no simulado): visita a `/` (registra `VISITA`), reserva de número confirmada (registra `PARTICIPACION` y llama a `enviarConfirmacion`), clic hacia WhatsApp vía `POST /api/metricas/click-whatsapp` (registra `CONVERSION_WHATSAPP`), y ciclo completo de A7→A8 (registrar resultado y publicarlo, llamando a `anunciarResultado`) — las cuatro filas de `eventos_metricas` y la auditoría correspondiente se verificaron directamente con `psql`
+- [x] Confirmado que un fallo hipotético al registrar la métrica de participación no puede traducirse en un error de negocio falso para el usuario: el registro ocurre fuera del `try` que traduce errores de la reserva
+- [x] Base de datos reseteada a su estado limpio de seed (`prisma migrate reset`) después de las pruebas manuales
+
+### Deuda técnica — Módulo 7
+
+- **Ningún panel consume todavía los datos de `eventos_metricas`** — a propósito (Sprint 4, sección 5.3): el objetivo de este módulo era solo empezar a capturar, no mostrar. Queda para cuando se decida medir de verdad.
+- **`CONVERSION_INSTAGRAM`, `CONVERSION_FACEBOOK` y `CONVERSION_CAMPANA` no tienen ningún llamador** — no existe hoy un enlace real de esos canales en la interfaz (Restricciones de este módulo).

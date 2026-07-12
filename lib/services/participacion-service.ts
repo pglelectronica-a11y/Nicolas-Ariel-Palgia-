@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ErrorAplicacion } from "@/lib/errors";
 import { validarNombre, validarNumero, validarTelefono } from "@/lib/validation";
 import { LimitadorService, type PoliticaLimite } from "@/lib/services/limitador-service";
+import { registrarEventoMetrica } from "@/lib/services/metrica-service";
+import { NotificacionesService } from "@/lib/services/notificaciones-service";
 import type { ParticipacionConfirmadaDTO } from "@/types/sorteo";
 
 /**
@@ -86,8 +88,9 @@ export const ParticipacionService = {
       sorteo.cantidadNumeros,
     );
 
+    let participacion;
     try {
-      const participacion = await prisma.$transaction(async (tx) => {
+      participacion = await prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.upsert({
           where: { telefono },
           update: { nombre },
@@ -98,15 +101,22 @@ export const ParticipacionService = {
           data: { sorteoId, usuarioId: usuario.id, numero },
         });
       });
-
-      return {
-        numero: participacion.numero,
-        premio: sorteo.premio,
-        fechaCierre: sorteo.fechaCierre.toISOString(),
-      };
     } catch (error) {
       throw traducirErrorDeReserva(error);
     }
+
+    await registrarEventoMetrica({ tipo: "PARTICIPACION", sorteoId });
+    await NotificacionesService.enviarConfirmacion(
+      telefono,
+      sorteo.premio,
+      participacion.numero,
+    );
+
+    return {
+      numero: participacion.numero,
+      premio: sorteo.premio,
+      fechaCierre: sorteo.fechaCierre.toISOString(),
+    };
   },
 };
 

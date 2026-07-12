@@ -69,6 +69,13 @@ export function ParticipacionFlow({
 
   function abrirWhatsapp() {
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    fetch("/api/metricas/click-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sorteoId: sorteoActivo?.id ?? null }),
+    }).catch(() => {
+      /* clic hacia WhatsApp ya se abrió; registrar la métrica es secundario */
+    });
   }
 
   async function buscarParticipacion(sorteoId: string, telefonoBuscado: string) {

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ErrorAplicacion } from "@/lib/errors";
 import { ResultadoExternoService } from "@/lib/services/resultado-externo-service";
 import { registrarAuditoria } from "@/lib/services/auditoria-service";
+import { NotificacionesService } from "@/lib/services/notificaciones-service";
 import type {
   ResultadoObtenidoDTO,
   ResultadoPublicoDTO,
@@ -168,6 +169,12 @@ export const ResultadoService = {
         ? `Resultado publicado para "${resultado.sorteo.premio}": número premiado ${resultado.numeroPremiado}.`
         : `Resultado publicado para "${resultado.sorteo.premio}": sorteo desierto.`,
     });
+
+    await NotificacionesService.anunciarResultado(
+      sorteoId,
+      resultado.sorteo.premio,
+      resultado.participacionId === null,
+    );
   },
 
   /** A9 — datos del ganador para verificar y confirmar la entrega del premio. */
