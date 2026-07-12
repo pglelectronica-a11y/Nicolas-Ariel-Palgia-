@@ -1,0 +1,30 @@
+# dependencias
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# producción
+/build
+
+# variables de entorno — nunca versionadas
+.env
+.env.local
+.env.*.local
+
+# logs y depuración
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# sistema operativo / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

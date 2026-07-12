@@ -1,0 +1,238 @@
+// Núcleo de datos de PGL Club — Módulo 2.
+//
+// Implementación 1:1 del modelo aprobado en docs/SPRINT-4-ARQUITECTURA-TECNICA.md
+// (sección 3, actualizada con números configurables, modalidad de ganador,
+// auditoría y configuración global). No se simplifica ni se reinterpreta
+// nada de lo ya aprobado — cada comentario referencia la decisión original.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Enumeraciones ─────────────────────────
+
+/// Ciclo de vida de un sorteo (Sprint 4, sección 3.1 y Sprint 1, sección 7).
+enum EstadoSorteo {
+  BORRADOR // creado (p. ej. al duplicar) pero no visible para usuarios
+  ACTIVO // visible y recibiendo participaciones
+  CERRADO // pasó la fecha límite, pendiente de resultado
+  RESULTADO_OBTENIDO // número ganador determinado, pendiente de publicar
+  PUBLICADO // resultado visible para todos los usuarios
+  DESIERTO // publicado, pero nadie reservó el número ganador (solo modalidad EXACTO)
+
+  @@map("estado_sorteo")
+}
+
+/// Cómo se determina el ganador de un sorteo (Sprint 4, sección 3.6).
+enum ModalidadGanador {
+  EXACTO // cruza el número de la Quiniela contra los reservados; puede quedar desierto
+  MAS_CERCANO // siempre hay ganador: gana el número reservado más próximo
+
+  @@map("modalidad_ganador")
+}
+
+/// Acciones administrativas que la auditoría registra como mínimo (Sprint 4, sección 3.7).
+enum AccionAuditoria {
+  CREAR_SORTEO
+  EDITAR_SORTEO
+  ELIMINAR_PARTICIPANTE
+  LIBERAR_NUMERO
+  PUBLICAR_RESULTADO
+  ENTREGAR_PREMIO
+
+  @@map("accion_auditoria")
+}
+
+/// Sobre qué tipo de entidad actuó un registro de auditoría.
+enum TipoEntidadAuditoria {
+  SORTEO
+  PARTICIPACION
+
+  @@map("tipo_entidad_auditoria")
+}
+
+/// Eventos que la tabla reservada de métricas va a poder registrar (PCS, sección 22).
+enum TipoEventoMetrica {
+  PARTICIPACION
+  VISITA
+  CONVERSION_WHATSAPP
+  CONVERSION_INSTAGRAM
+  CONVERSION_FACEBOOK
+  CONVERSION_CAMPANA
+
+  @@map("tipo_evento_metrica")
+}
+
+// ───────────────────────────── Modelos ─────────────────────────────
+
+/// Identidad reutilizada por cualquier módulo futuro (Sprint 4, sección 3.1).
+/// El teléfono es único porque es, a la vez, el dato de contacto y la forma
+/// de detectar "usuario que ya participó" (Sprint 1, sección 5, estados del sistema).
+model Usuario {
+  id       String   @id @default(uuid())
+  nombre   String
+  telefono String   @unique
+  creadoEn DateTime @default(now()) @map("creado_en")
+
+  participaciones Participacion[]
+
+  @@map("usuarios")
+}
+
+/// Un sorteo. Incluye número inicial, cantidad de números y modalidad de
+/// determinación del ganador — las tres mejoras del Sprint 4 v1.1 — junto
+/// con los campos ya aprobados en la v1.0.
+model Sorteo {
+  id               String           @id @default(uuid())
+  premio           String
+  imagenUrl        String?          @map("imagen_url")
+  fechaInicio      DateTime         @default(now()) @map("fecha_inicio")
+  fechaCierre      DateTime         @map("fecha_cierre")
+  numeroInicial    Int              @default(0) @map("numero_inicial")
+  cantidadNumeros  Int              @map("cantidad_numeros")
+  modalidadGanador ModalidadGanador @default(EXACTO) @map("modalidad_ganador")
+  estado           EstadoSorteo     @default(BORRADOR)
+  creadoEn         DateTime         @default(now()) @map("creado_en")
+  actualizadoEn    DateTime         @updatedAt @map("actualizado_en")
+
+  participaciones Participacion[]
+  resultado       Resultado?
+  eventosMetrica  EventoMetrica[]
+
+  // Sprint 4, sección 3.3: índice sobre sorteos.estado — es la columna por la
+  // que se busca "el sorteo activo" en casi todas las pantallas de usuario.
+  @@index([estado])
+  @@map("sorteos")
+}
+
+/// Un número reservado por un usuario dentro de un sorteo.
+/// Las dos restricciones únicas son, literalmente, las reglas funcionales
+/// del Sprint 1 aplicadas a nivel de base de datos (sección 3.4 del Sprint 4):
+///   - un número, un dueño → único (sorteo, número)
+///   - un usuario, un número por sorteo → único (sorteo, usuario)
+model Participacion {
+  id        String   @id @default(uuid())
+  sorteoId  String   @map("sorteo_id")
+  usuarioId String   @map("usuario_id")
+  numero    Int
+  creadoEn  DateTime @default(now()) @map("creado_en")
+
+  sorteo    Sorteo     @relation(fields: [sorteoId], references: [id], onDelete: Restrict)
+  usuario   Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  resultado Resultado?
+
+  @@unique([sorteoId, numero], map: "un_numero_un_dueno")
+  @@unique([sorteoId, usuarioId], map: "un_usuario_un_numero_por_sorteo")
+  @@index([sorteoId])
+  @@index([usuarioId])
+  @@map("participaciones")
+}
+
+/// El resultado de un sorteo. numeroGanador es siempre el número que salió en
+/// la Quiniela; numeroPremiado es el que efectivamente cobra el premio —
+/// coinciden salvo en modalidad MAS_CERCANO (Sprint 4, sección 3.6).
+/// participacionId puede ser null únicamente cuando el sorteo queda desierto.
+model Resultado {
+  id                 String    @id @default(uuid())
+  sorteoId           String    @unique @map("sorteo_id")
+  numeroGanador      Int       @map("numero_ganador")
+  numeroPremiado     Int?      @map("numero_premiado")
+  participacionId    String?   @unique @map("participacion_id")
+  publicadoEn        DateTime? @map("publicado_en")
+  verificadoWhatsapp Boolean   @default(false) @map("verificado_whatsapp")
+  premioEntregado    Boolean   @default(false) @map("premio_entregado")
+  creadoEn           DateTime  @default(now()) @map("creado_en")
+
+  sorteo        Sorteo         @relation(fields: [sorteoId], references: [id], onDelete: Restrict)
+  participacion Participacion? @relation(fields: [participacionId], references: [id], onDelete: Restrict)
+
+  @@map("resultados")
+}
+
+/// Administradores del panel (Sprint 4, sección 4.1). Un único rol por ahora,
+/// a propósito — la tabla ya admite agregar un campo de rol más adelante sin
+/// romper nada existente.
+model Administrador {
+  id             String    @id @default(uuid())
+  usuario        String    @unique
+  contrasenaHash String    @map("contrasena_hash")
+  creadoEn       DateTime  @default(now()) @map("creado_en")
+  ultimoIngreso  DateTime? @map("ultimo_ingreso")
+
+  auditorias Auditoria[]
+
+  @@map("administradores")
+}
+
+/// Registro de solo lectura de acciones administrativas relevantes
+/// (Sprint 4, sección 3.7). entidadId no lleva clave foránea real a propósito:
+/// puede apuntar a un Sorteo o a una Participacion según `entidadTipo`, y
+/// además debe seguir existiendo como evidencia aunque la fila original se
+/// borre — una auditoría no puede depender del ciclo de vida de lo que audita.
+model Auditoria {
+  id              String               @id @default(uuid())
+  administradorId String               @map("administrador_id")
+  accion          AccionAuditoria
+  entidadTipo     TipoEntidadAuditoria @map("entidad_tipo")
+  entidadId       String               @map("entidad_id")
+  detalle         String
+  creadoEn        DateTime             @default(now()) @map("creado_en")
+
+  administrador Administrador @relation(fields: [administradorId], references: [id], onDelete: Restrict)
+
+  @@index([creadoEn])
+  @@index([administradorId])
+  @@map("auditoria")
+}
+
+/// Parámetros globales del sistema en clave/valor (Sprint 4, sección 3.8):
+/// agregar un parámetro nuevo es agregar una fila, no una migración.
+/// La clave es la propia llave primaria — no hace falta un id sintético
+/// encima de un campo que ya es único por definición.
+model Configuracion {
+  clave       String  @id
+  valor       String
+  descripcion String?
+
+  @@map("configuracion")
+}
+
+/// Límite de intentos (Módulo 6 — Sprint 4, sección 6: "límite de
+/// solicitudes"). Una fila por clave lógica (por ejemplo `login:admin:<ip>`
+/// o `participar:<ip>`) — no hace falta una tabla por endpoint, la clave ya
+/// distingue el recurso protegido. Backend elegido a propósito: Postgres, no
+/// memoria del proceso ni un servicio externo — el proyecto ya usa Postgres
+/// como única fuente de verdad, y un contador en memoria no es confiable en
+/// Vercel (múltiples instancias serverless, cada una con su propia memoria).
+model IntentoAcceso {
+  clave          String    @id
+  intentos       Int       @default(1)
+  primerIntento  DateTime  @default(now()) @map("primer_intento")
+  bloqueadoHasta DateTime? @map("bloqueado_hasta")
+  actualizadoEn  DateTime  @updatedAt @map("actualizado_en")
+
+  @@map("intentos_acceso")
+}
+
+/// Tabla reservada para métricas (PCS, sección 22 / Sprint 4, sección 5.3).
+/// Estructura preparada, sin ningún servicio que la use todavía — el objetivo
+/// es que la captura de datos pueda empezar el día que se decida medir, sin
+/// tener que rediseñar la base en ese momento.
+model EventoMetrica {
+  id       String            @id @default(uuid())
+  tipo     TipoEventoMetrica
+  sorteoId String?           @map("sorteo_id")
+  origen   String?
+  creadoEn DateTime          @default(now()) @map("creado_en")
+
+  sorteo Sorteo? @relation(fields: [sorteoId], references: [id], onDelete: SetNull)
+
+  @@index([tipo])
+  @@index([sorteoId])
+  @@map("eventos_metricas")
+}
