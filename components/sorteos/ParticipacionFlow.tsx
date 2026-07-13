@@ -48,18 +48,25 @@ export function ParticipacionFlow({
     null,
   );
   const [telefonoRecordado, setTelefonoRecordado] = useState<string | null>(null);
+  const [esVisitanteRecurrente, setEsVisitanteRecurrente] = useState(false);
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [errorNumero, setErrorNumero] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    if (!sorteoActivo) return;
     const guardado = window.localStorage.getItem(CLAVE_ALMACENAMIENTO);
     if (!guardado) return;
+
+    // Haber confirmado una participación alguna vez (en cualquier sorteo, no
+    // solo el activo) ya alcanza para reconocerlo como cara conocida —
+    // Sprint 1, sección 8.7. No hace falta guardar ni consultar nada nuevo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage solo existe en el cliente, mismo patrón que hooks/use-theme.ts
+    setEsVisitanteRecurrente(true);
+
+    if (!sorteoActivo) return;
     try {
       const datos: ParticipacionGuardada = JSON.parse(guardado);
       if (datos.sorteoId === sorteoActivo.id) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage solo existe en el cliente, mismo patrón que hooks/use-theme.ts
         setTelefonoRecordado(datos.telefono);
       }
     } catch {
@@ -226,6 +233,7 @@ export function ParticipacionFlow({
     <PantallaPrincipal
       sorteo={{ ...sorteoActivo, numerosOcupados }}
       yaParticipo={telefonoRecordado !== null}
+      esVisitanteRecurrente={esVisitanteRecurrente}
       onParticipar={() => setPaso("datos")}
       onVerMiNumero={verMiNumero}
       onInvitacionWhatsapp={abrirWhatsapp}

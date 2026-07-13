@@ -2,7 +2,7 @@
 
 La comunidad oficial de PGL Electrónica. Este repositorio es el código del producto — la documentación de producto y arquitectura vive en [`docs/`](./docs) (PCS y Sprints 1 a 4, todos aprobados).
 
-**Estado actual: Módulo 7 — Preparación de integraciones, validado.** `NotificacionesService` (WhatsApp) y el registro de eventos en `eventos_metricas` quedan conectados en los momentos reales del flujo (participación confirmada, resultado publicado, visita a la pantalla principal, clic hacia el canal de WhatsApp), con implementación vacía o de solo-lectura por ahora. Sigue el roadmap completo de Sprint 4 — ver [Restricciones de este módulo](#restricciones-de-este-módulo) para lo que queda deliberadamente fuera (Módulo 8).
+**Estado actual: Módulo 8 — Pulido y lanzamiento, en progreso.** Primer avance: la bienvenida de Peggie (U1) ahora distingue a alguien que ya participó en un sorteo anterior de alguien nuevo (Sprint 1, sección 8.7) — hasta ahora ese punto del documento aprobado no estaba implementado en el código. Todavía quedan pendientes: prueba en dispositivos reales, revisión de accesibilidad, y el primer sorteo real con público — ver [checklist de este módulo](#checklist-de-cierre-del-módulo-8).
 
 ---
 
@@ -90,6 +90,12 @@ PGL-Club/
 ### Biblioteca de componentes (`components/ui/`)
 
 Implementación en código de la biblioteca ya aprobada en el Sprint 3: `Button`, `Card`, `Input`, `Checkbox`, `Badge`, `Tabs`, `Alert`, `Modal`, `Tooltip`, `Skeleton`, `StatCounter`. Ninguno conoce el negocio de sorteos — reciben datos por props y se apoyan únicamente en los Design Tokens (`styles/tokens.css`) a través de las utilidades de Tailwind configuradas en `tailwind.config.ts`.
+
+### Módulo 8 — decisiones de implementación (en progreso)
+
+- **Reconocer a un visitante recurrente no necesita ninguna consulta nueva a la base** (Sprint 1, sección 8.7): alcanza con que exista *cualquier* registro de participación guardado en `localStorage` (`ParticipacionFlow.tsx`), sin importar a qué sorteo pertenezca. Antes, ese mismo dato solo se leía si coincidía con el id del sorteo activo — que es exactamente lo que hacía falta para otra cosa (mostrar "Ver mi número" en *este* sorteo), pero dejaba a cualquiera que volviera en una semana distinta tratado como visitante nuevo, al revés de lo que pide el documento.
+- **El tono de "bienvenida de vuelta" (`MENSAJES.bienvenidaDeVuelta`) no menciona ningún dato personal** — ni nombre, ni número anterior, ni teléfono — solo transmite que es una cara conocida, tal como lo exige la sección 8.7 ("sin necesidad de recordar datos personales").
+- **Validado en navegador real** (Playwright contra el servidor de desarrollo, no solo revisión de código): primera visita sin `localStorage` muestra la bienvenida normal; una visita simulada con un registro de un sorteo distinto al activo muestra la bienvenida de vuelta.
 
 ### Módulo 7 — decisiones de implementación
 
@@ -303,3 +309,13 @@ Deliberadamente, el Módulo 7 **no** incluye: ninguna integración automática r
 
 - **Ningún panel consume todavía los datos de `eventos_metricas`** — a propósito (Sprint 4, sección 5.3): el objetivo de este módulo era solo empezar a capturar, no mostrar. Queda para cuando se decida medir de verdad.
 - **`CONVERSION_INSTAGRAM`, `CONVERSION_FACEBOOK` y `CONVERSION_CAMPANA` no tienen ningún llamador** — no existe hoy un enlace real de esos canales en la interfaz (Restricciones de este módulo).
+
+## Checklist de cierre del Módulo 8
+
+- [x] `npm run build`, `npm run lint`, `npm run typecheck`, `npm run format:check` — todos en verde
+- [x] `npm audit` — 0 vulnerabilidades
+- [x] Contenido definitivo de la bienvenida de Peggie para visitantes recurrentes (Sprint 1, sección 8.7) — implementado y verificado en navegador real (Playwright contra el servidor de desarrollo): primera visita vs. visita con una participación previa en otro sorteo
+- [ ] Prueba en dispositivos reales — pendiente, no se puede probar desde este entorno
+- [ ] Revisión de accesibilidad — pendiente
+- [ ] Deploy real en Vercel con base de datos administrada (Neon/Supabase) — pendiente, ver sección "Cómo desplegar en Vercel"
+- [ ] Primer sorteo real con público — pendiente, depende del deploy

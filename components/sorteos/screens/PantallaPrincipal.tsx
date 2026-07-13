@@ -8,6 +8,7 @@ import type { SorteoActivoDTO } from "@/types/sorteo";
 export interface PantallaPrincipalProps {
   sorteo: SorteoActivoDTO;
   yaParticipo: boolean;
+  esVisitanteRecurrente: boolean;
   onParticipar: () => void;
   onVerMiNumero: () => void;
   onInvitacionWhatsapp: () => void;
@@ -17,16 +18,20 @@ export interface PantallaPrincipalProps {
 export function PantallaPrincipal({
   sorteo,
   yaParticipo,
+  esVisitanteRecurrente,
   onParticipar,
   onVerMiNumero,
   onInvitacionWhatsapp,
 }: PantallaPrincipalProps) {
   const cuposLibres = sorteo.cantidadNumeros - sorteo.numerosOcupados.length;
   const sinCupos = cuposLibres <= 0;
+  const bienvenida = esVisitanteRecurrente
+    ? MENSAJES.bienvenidaDeVuelta(sorteo.premio)
+    : MENSAJES.bienvenida(sorteo.premio);
 
   return (
     <div className="flex flex-col gap-4">
-      <Peggie mensaje={elegirVariante(MENSAJES.bienvenida(sorteo.premio), sorteo.id)} />
+      <Peggie mensaje={elegirVariante(bienvenida, sorteo.id)} />
       <PrizeCard
         premio={sorteo.premio}
         imagenUrl={sorteo.imagenUrl}

@@ -29,6 +29,16 @@ export const MENSAJES = {
     `¡Llegaste justo a tiempo! Esta semana hay ${premio} en juego. Soy Peggie, te acompaño.`,
     `Hola, ¿qué tal? Esta semana el premio es ${premio}. Vení que te muestro cómo participar.`,
   ],
+  /**
+   * Sprint 1, sección 8.7: alguien que ya participó en un sorteo anterior
+   * (una semana distinta) tiene que sentir que vuelve a una comunidad
+   * conocida — sin exponer ningún dato personal en el mensaje, solo el tono.
+   */
+  bienvenidaDeVuelta: (premio: string) => [
+    `¡Qué bueno tenerte de vuelta! 👋 Esta semana el premio es ${premio}. ¿Vamos por otro número de la suerte?`,
+    `Volviste — se nota que te gusta esto. Esta semana sorteamos ${premio}.`,
+    `Hola de nuevo. Esta semana el premio es ${premio}, ya sabés cómo sigue.`,
+  ],
   comoParticipar: () => [
     "Dejame tu nombre y tu celu, elegís tu número, ¡y listo! Menos de un minuto.",
     "Es simple: nombre, celular, elegís tu número favorito y confirmás. Ya está.",
