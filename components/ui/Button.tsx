@@ -12,10 +12,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-white shadow-1 hover:bg-primary-hover hover:-translate-y-px",
+  primary:
+    "bg-primary-solid text-white shadow-1 hover:bg-primary-solid-hover hover:-translate-y-px",
   secondary: "bg-surface text-ink border border-border-strong hover:border-ink",
   ghost: "bg-transparent text-primary underline underline-offset-2 px-0",
-  destructive: "bg-error text-white hover:brightness-95",
+  destructive: "bg-error-solid text-white hover:brightness-95",
 };
 
 /**

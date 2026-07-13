@@ -14,6 +14,14 @@
   --primary: #3b4bdb;
   --primary-hover: #2f3ec4;
   --primary-tint: rgba(59, 75, 219, 0.1);
+  /* Superficie sólida (botón primario, celda de número seleccionada): texto
+     blanco encima siempre en 4.5:1 o más (WCAG AA). En claro es el mismo
+     `--primary` — ya cumple; en oscuro se define aparte más abajo, porque
+     el `--primary` de ese tema está aclarado a propósito para funcionar
+     como color de texto/ícono sobre el fondo oscuro, no como relleno con
+     texto blanco encima (ahí 3.82:1 no alcanza). */
+  --primary-solid: var(--primary);
+  --primary-solid-hover: var(--primary-hover);
 
   --ink: #131316;
   --muted: #6c6c74;
@@ -30,6 +38,8 @@
   --success-tint: rgba(31, 138, 95, 0.12);
   --error: #c9463d;
   --error-tint: rgba(201, 70, 61, 0.12);
+  /* Superficie sólida (botón destructivo) — ver nota junto a --primary-solid. */
+  --error-solid: var(--error);
   --warning: #b8842a;
   --warning-tint: rgba(184, 132, 42, 0.14);
   --info: var(--primary);
@@ -60,6 +70,12 @@
   --primary: #6b78ea;
   --primary-hover: #7f8bee;
   --primary-tint: rgba(107, 120, 234, 0.16);
+  /* Ver nota en :root — 5.53:1 y 6.25:1 con texto blanco (AA), y todavía
+     con contraste suficiente contra el fondo oscuro para distinguirse como
+     superficie (WCAG 1.4.11). Verificado con cálculo de luminancia real,
+     no a ojo. */
+  --primary-solid: #4a5add;
+  --primary-solid-hover: #414edd;
 
   --ink: #f2f2f4;
   --muted: #a3a3ac;
@@ -76,6 +92,10 @@
   --success-tint: rgba(63, 191, 131, 0.15);
   --error: #e2665d;
   --error-tint: rgba(226, 102, 93, 0.15);
+  /* El --error de este tema (3.34:1 con texto blanco) no alcanza para
+     relleno sólido con texto encima — se reutiliza el mismo rojo del tema
+     claro, que ya da 4.74:1 con blanco y 4.09:1 contra este fondo oscuro. */
+  --error-solid: #c9463d;
   --warning: #d9a13f;
   --warning-tint: rgba(217, 161, 63, 0.16);
 

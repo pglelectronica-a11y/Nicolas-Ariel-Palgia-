@@ -2,7 +2,7 @@
 
 La comunidad oficial de PGL Electrónica. Este repositorio es el código del producto — la documentación de producto y arquitectura vive en [`docs/`](./docs) (PCS y Sprints 1 a 4, todos aprobados).
 
-**Estado actual: Módulo 8 — Pulido y lanzamiento, en progreso.** Primer avance: la bienvenida de Peggie (U1) ahora distingue a alguien que ya participó en un sorteo anterior de alguien nuevo (Sprint 1, sección 8.7) — hasta ahora ese punto del documento aprobado no estaba implementado en el código. Todavía quedan pendientes: prueba en dispositivos reales, revisión de accesibilidad, y el primer sorteo real con público — ver [checklist de este módulo](#checklist-de-cierre-del-módulo-8).
+**Estado actual: Módulo 8 — Pulido y lanzamiento, en progreso.** Avances: la bienvenida de Peggie (U1) ahora distingue a alguien que ya participó en un sorteo anterior de alguien nuevo (Sprint 1, sección 8.7); revisión de accesibilidad de contraste de color completa, con tres fallas reales de WCAG AA encontradas y corregidas. Todavía quedan pendientes: prueba en dispositivos reales, deploy real en Vercel, y el primer sorteo con público — ver [checklist de este módulo](#checklist-de-cierre-del-módulo-8).
 
 ---
 
@@ -315,7 +315,15 @@ Deliberadamente, el Módulo 7 **no** incluye: ninguna integración automática r
 - [x] `npm run build`, `npm run lint`, `npm run typecheck`, `npm run format:check` — todos en verde
 - [x] `npm audit` — 0 vulnerabilidades
 - [x] Contenido definitivo de la bienvenida de Peggie para visitantes recurrentes (Sprint 1, sección 8.7) — implementado y verificado en navegador real (Playwright contra el servidor de desarrollo): primera visita vs. visita con una participación previa en otro sorteo
+- [x] Revisión de accesibilidad — contraste de color (Sprint 3, sección 10) verificado con cálculo real de luminancia WCAG, no a ojo; encontrados y corregidos tres casos reales que no llegaban a 4.5:1 (detalle abajo); confirmado en navegador (claro y oscuro) que los botones y la celda de número seleccionada siguen viéndose coherentes con el resto del sistema
 - [ ] Prueba en dispositivos reales — pendiente, no se puede probar desde este entorno
-- [ ] Revisión de accesibilidad — pendiente
 - [ ] Deploy real en Vercel con base de datos administrada (Neon/Supabase) — pendiente, ver sección "Cómo desplegar en Vercel"
 - [ ] Primer sorteo real con público — pendiente, depende del deploy
+
+### Módulo 8 — hallazgos de la revisión de accesibilidad
+
+- **Botón primario y celda de número seleccionada, en modo oscuro: 3.82:1** (texto blanco sobre `--primary`) — no llegaba al mínimo de 4.5:1 (WCAG AA, texto normal). El `--primary` de ese tema está aclarado a propósito para funcionar como color de *texto/ícono sobre el fondo* (links, foco, el check del Checkbox — todos ya cumplían), no como relleno sólido con texto blanco encima. Se agregó un token dedicado, `--primary-solid` (`styles/tokens.css`), usado solo en esos dos lugares (`Button.tsx` variante `primary`, `NumberGrid.tsx` celda seleccionada) — el resto de los usos de `--primary` queda intacto.
+- **Botón destructivo, en modo oscuro: 3.34:1** — mismo problema, mismo origen (el `--error` de ese tema también está aclarado para texto/ícono). Se agregó `--error-solid` de la misma forma; en este caso alcanzó con reutilizar el mismo rojo del tema claro (4.74:1 con blanco, 4.09:1 contra el fondo oscuro), sin inventar un tono nuevo.
+- **Placeholder "Imagen del premio" (`PrizeCard.tsx`), en ambos temas: 2.50:1 (claro) / 3.19:1 (oscuro)** — usaba `--faint` (Neutro 400 del Sprint 3) contra `--surface-2`, muy por debajo del mínimo. Cambiado a `--muted`, el otro nivel de texto secundario que ya existía en el sistema y sí cumple (4.99:1 / 7.75:1) — no hizo falta ningún color nuevo.
+- **No corregido a propósito:** el número de las celdas ya ocupadas en la grilla (`NumberGrid.tsx`) también usa `--faint` sobre `--surface-2` (2.50:1). Se dejó así porque son celdas con `disabled` real — WCAG exceptúa explícitamente de este criterio al texto que forma parte de un control inactivo, así que no es una falla real, y tocar esto habría sido un cambio sin necesidad concreta.
+- **Encontrado pero no tocado:** la fecha de cierre en U1 (`Cierra en 18/7/26, 1:35 a. m.`) genera un error de hidratación en el navegador (texto de servidor y cliente no coinciden por una diferencia sutil en cómo `Intl.DateTimeFormat` formatea la hora entre Node y el navegador). Es un bug real y preexistente, pero no es un problema de accesibilidad ni algo que este chequeo pedía resolver — queda anotado para resolverlo aparte.

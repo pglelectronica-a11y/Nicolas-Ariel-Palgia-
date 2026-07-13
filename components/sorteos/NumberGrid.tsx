@@ -52,7 +52,8 @@ export function NumberGrid({
               ocupado
                 ? "cursor-not-allowed border-dashed border-border-strong bg-surface-2 text-faint"
                 : "border-border-strong bg-surface text-ink hover:-translate-y-px",
-              seleccionado && "scale-105 border-primary bg-primary text-white shadow-1",
+              seleccionado &&
+                "scale-105 border-primary-solid bg-primary-solid text-white shadow-1",
             )}
           >
             {numero}

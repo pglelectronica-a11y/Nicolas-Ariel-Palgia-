@@ -18,7 +18,7 @@ export function PrizeCard({ premio, imagenUrl, subtitulo }: PrizeCardProps) {
           className="mb-3 h-36 w-full rounded-sm object-cover"
         />
       ) : (
-        <div className="mb-3 flex h-36 items-center justify-center rounded-sm bg-surface-2 font-mono text-xs uppercase text-faint">
+        <div className="mb-3 flex h-36 items-center justify-center rounded-sm bg-surface-2 font-mono text-xs uppercase text-muted">
           Imagen del premio
         </div>
       )}
